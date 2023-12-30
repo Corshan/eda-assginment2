@@ -27,9 +27,16 @@ export class EdaStack extends cdk.Stack {
     });
 
     // Integration infrastructure
+    const badImageQueue = new sqs.Queue(this, "bad-image-queue", {
+      retentionPeriod: cdk.Duration.minutes(30)
+    });
 
     const imageProcessQueue = new sqs.Queue(this, "img-created-queue", {
       receiveMessageWaitTime: cdk.Duration.seconds(10),
+      deadLetterQueue: {
+        queue: badImageQueue,
+        maxReceiveCount: 1
+      }
     });
 
     const mailerQ = new sqs.Queue(this, "mailer-queue", {
@@ -54,12 +61,20 @@ export class EdaStack extends cdk.Stack {
       }
     );
 
-    const mailerFn = new lambdanode.NodejsFunction(this, "mailer-function", {
+    const mailerFn = new lambdanode.NodejsFunction(this, "confirmation-mailer-function", {
       runtime: lambda.Runtime.NODEJS_16_X,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(3),
-      entry: `${__dirname}/../lambdas/mailer.ts`,
+      entry: `${__dirname}/../lambdas/confirmation-mailer.ts`,
     });
+
+    const rejectionMailerFn = new lambdanode.NodejsFunction(
+      this, "rejection-mailer-function", {
+        runtime: lambda.Runtime.NODEJS_16_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(3),
+      entry: `${__dirname}/../lambdas/rejection-mailer.ts`,
+      })
 
     // Event triggers
 
@@ -88,6 +103,8 @@ export class EdaStack extends cdk.Stack {
 
     mailerFn.addEventSource(newImageMailEventSource);
 
+    rejectionMailerFn.addEventSource(new events.SqsEventSource(badImageQueue));
+
     // Permissions
 
     imagesBucket.grantRead(processImageFn);
@@ -103,5 +120,18 @@ export class EdaStack extends cdk.Stack {
         resources: ["*"],
       })
     );
+
+    rejectionMailerFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "ses:SendEmail",
+          "ses:SendRawEmail",
+          "ses:SendTemplatedEmail",
+        ],
+        resources: ["*"],
+      })
+    );
+
   }
 }

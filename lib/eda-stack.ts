@@ -8,6 +8,7 @@ import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { Construct } from "constructs";
 
 export class EdaStack extends cdk.Stack {
@@ -18,6 +19,13 @@ export class EdaStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       publicReadAccess: false,
+    });
+
+    const imageTable = new dynamodb.Table(this, "ImageTable", {
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      partitionKey: { name: "fileName", type: dynamodb.AttributeType.STRING },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      tableName: "Images"
     });
 
     // Output
@@ -58,6 +66,9 @@ export class EdaStack extends cdk.Stack {
         entry: `${__dirname}/../lambdas/processImage.ts`,
         timeout: cdk.Duration.seconds(15),
         memorySize: 128,
+        environment: {
+          TABLE_NAME: imageTable.tableName
+        }
       }
     );
 
@@ -108,6 +119,7 @@ export class EdaStack extends cdk.Stack {
     // Permissions
 
     imagesBucket.grantRead(processImageFn);
+    imageTable.grantWriteData(processImageFn)
 
     mailerFn.addToRolePolicy(
       new iam.PolicyStatement({

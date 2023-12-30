@@ -1,6 +1,4 @@
-/* eslint-disable import/extensions, import/no-absolute-path */
 import { SQSHandler } from "aws-lambda";
-// import { sharp } from "/opt/nodejs/sharp-utils";
 import {
   GetObjectCommand,
   PutObjectCommandInput,
@@ -8,8 +6,12 @@ import {
   S3Client,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { Image, createDDbDocClient } from "../shared/utils";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
 
 const s3 = new S3Client();
+
+const ddbClient = createDDbDocClient();
 
 export const handler: SQSHandler = async (event) => {
   console.log("Event ", event);
@@ -37,6 +39,15 @@ export const handler: SQSHandler = async (event) => {
           throw new Error("Unsupported image type: ${imageType. ");
         }
         // process image upload 
+
+        await ddbClient.send(
+          new PutCommand({
+            TableName: process.env.TABLE_NAME,
+            Item: {
+              fileName: srcKey
+            } as Image
+          })
+        )
       }
     }
   }

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { EdaAssignment2Stack } from '../lib/eda-assignment2-stack';
+import { EdaStack } from '../lib/eda-stack';
 
 const app = new cdk.App();
-new EdaAssignment2Stack(app, 'EdaAssignment2Stack', {
+new EdaStack(app, 'EdaAssignment2Stack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */

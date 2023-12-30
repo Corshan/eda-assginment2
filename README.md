@@ -1,14 +1,42 @@
-# Welcome to your CDK TypeScript project
+## EDA Assignment - Distributed Systems.
 
-This is a blank project for CDK development with TypeScript.
+__Name:__ ....your name .....
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+__YouTube Demo link__ - [The URL of your demonstration of the app.]
 
-## Useful commands
+[ Note: The video must include an audio.]
 
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `cdk deploy`      deploy this stack to your default AWS account/region
-* `cdk diff`        compare deployed stack with current state
-* `cdk synth`       emits the synthesized CloudFormation template
+### Phase 1.
+
+[ List the Lambda functions in this phase's architecture and state their working status.]
+
+, e.g.
+
++ Confirmation Mailer - Fully implemented.
++ Rejection Mailer - Fully implemented.
++ Process Image - Partially implemented
+
+### Phase 2 (if relevant).
+
+[ List the Lambda functions in this phase's architecture and state their working status.]
+
+ e.g.
+
++ Confirmation Mailer - Fully implemented.
++ Rejection Mailer - Fully implemented.
++ Process Image - Fully implemented
++ Process Delete - Partially implemented.
++ Update Table - Not implemented.
+
+### Phase 3 (if relevant).
+
+[ List the Lambda functions in this phase's architecture and state their working status.]
+
+ e.g.
+
++ Confirmation Mailer - Fully implemented.
++ Rejection Mailer - Fully implemented.
++ Process Image - Fully implemented
++ etc
++ etc
+

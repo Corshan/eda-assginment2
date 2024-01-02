@@ -83,6 +83,21 @@ export class EdaStack extends cdk.Stack {
       }
     );
 
+    const updateImageFn = new lambdanode.NodejsFunction(
+      this,
+      "UpdateImageFn",
+      {
+        // architecture: lambda.Architecture.ARM_64,
+        runtime: lambda.Runtime.NODEJS_18_X,
+        entry: `${__dirname}/../lambdas/update-table.ts`,
+        timeout: cdk.Duration.seconds(15),
+        memorySize: 128,
+        environment: {
+          TABLE_NAME: imageTable.tableName
+        }
+      }
+    );
+
     const confirmationMailerFn = new lambdanode.NodejsFunction(this, "confirmation-mailer-function", {
       runtime: lambda.Runtime.NODEJS_16_X,
       memorySize: 1024,
@@ -142,6 +157,16 @@ export class EdaStack extends cdk.Stack {
       new subs.LambdaSubscription(confirmationMailerFn)
     );
 
+    imageTopic.addSubscription(
+      new subs.LambdaSubscription(updateImageFn, {
+        filterPolicy: {
+          object_name: sns.SubscriptionFilter.stringFilter({
+            matchPrefixes: ['fileName']
+          })
+        }
+      })
+    )
+
     const newImageEventSource = new events.SqsEventSource(imageProcessQueue, {
       batchSize: 5,
       maxBatchingWindow: cdk.Duration.seconds(10),
@@ -156,6 +181,7 @@ export class EdaStack extends cdk.Stack {
     imagesBucket.grantRead(processImageFn);
     imageTable.grantWriteData(processImageFn);
     imageTable.grantReadWriteData(deleteImageFn);
+    imageTable.grantReadWriteData(updateImageFn);
 
     confirmationMailerFn.addToRolePolicy(
       new iam.PolicyStatement({

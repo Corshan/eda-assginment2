@@ -1,5 +1,4 @@
-import { SQSHandler } from "aws-lambda";
-// import AWS from 'aws-sdk';
+import { SNSHandler, SQSHandler } from "aws-lambda";
 import { SES_EMAIL_FROM, SES_EMAIL_TO, SES_REGION } from "../env";
 import {
   SESClient,
@@ -21,10 +20,10 @@ type ContactDetails = {
 
 const client = new SESClient({ region: "eu-west-1" });
 
-export const handler: SQSHandler = async (event: any) => {
+export const handler: SNSHandler = async (event) => {
   console.log("Event ", event);
   for (const record of event.Records) {
-    const recordBody = JSON.parse(record.body);
+    const recordBody = record.Sns;
     const snsMessage = JSON.parse(recordBody.Message);
 
     if (snsMessage.Records) {

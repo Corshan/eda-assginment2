@@ -10,6 +10,9 @@ import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { Construct } from "constructs";
+import { StreamViewType } from "aws-cdk-lib/aws-dynamodb";
+import { DynamoEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
+import { StartingPosition } from "aws-cdk-lib/aws-lambda";
 
 export class EdaStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -25,7 +28,8 @@ export class EdaStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       partitionKey: { name: "fileName", type: dynamodb.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      tableName: "Images"
+      tableName: "Images",
+      stream: StreamViewType.NEW_AND_OLD_IMAGES
     });
 
     // Output
@@ -98,20 +102,28 @@ export class EdaStack extends cdk.Stack {
       }
     );
 
-    const confirmationMailerFn = new lambdanode.NodejsFunction(this, "confirmation-mailer-function", {
-      runtime: lambda.Runtime.NODEJS_16_X,
-      memorySize: 1024,
-      timeout: cdk.Duration.seconds(3),
-      entry: `${__dirname}/../lambdas/confirmation-mailer.ts`,
-    });
+    // const confirmationMailerFn = new lambdanode.NodejsFunction(this, "confirmation-mailer-fn", {
+    //   runtime: lambda.Runtime.NODEJS_16_X,
+    //   memorySize: 1024,
+    //   timeout: cdk.Duration.seconds(3),
+    //   entry: `${__dirname}/../lambdas/confirmation-mailer.ts`,
+    // });
 
     const rejectionMailerFn = new lambdanode.NodejsFunction(
-      this, "rejection-mailer-function", {
+      this, "rejection-mailer-fn", {
         runtime: lambda.Runtime.NODEJS_16_X,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(3),
       entry: `${__dirname}/../lambdas/rejection-mailer.ts`,
       });
+
+      const addDeleteMailerFn = new lambdanode.NodejsFunction(
+        this, "add-delete-mailer-fn", {
+          runtime: lambda.Runtime.NODEJS_16_X,
+        memorySize: 1024,
+        timeout: cdk.Duration.seconds(3),
+        entry: `${__dirname}/../lambdas/delete-add-mailer.ts`,
+        });
 
     // Event triggers
 
@@ -153,9 +165,9 @@ export class EdaStack extends cdk.Stack {
       } )
     );
 
-    imageTopic.addSubscription(
-      new subs.LambdaSubscription(confirmationMailerFn)
-    );
+    // imageTopic.addSubscription(
+    //   new subs.LambdaSubscription(confirmationMailerFn)
+    // );
 
     imageTopic.addSubscription(
       new subs.LambdaSubscription(updateImageFn, {
@@ -176,24 +188,31 @@ export class EdaStack extends cdk.Stack {
 
     rejectionMailerFn.addEventSource(new events.SqsEventSource(badImageQueue));
 
+    const dbEvent = new events.DynamoEventSource(imageTable, {
+      startingPosition: StartingPosition.LATEST
+    });
+
+    addDeleteMailerFn.addEventSource(dbEvent);
+    
     // Permissions
 
     imagesBucket.grantRead(processImageFn);
     imageTable.grantWriteData(processImageFn);
     imageTable.grantReadWriteData(deleteImageFn);
     imageTable.grantReadWriteData(updateImageFn);
+    imageTable.grantStreamRead(addDeleteMailerFn);
 
-    confirmationMailerFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: [
-          "ses:SendEmail",
-          "ses:SendRawEmail",
-          "ses:SendTemplatedEmail",
-        ],
-        resources: ["*"],
-      })
-    );
+    // confirmationMailerFn.addToRolePolicy(
+    //   new iam.PolicyStatement({
+    //     effect: iam.Effect.ALLOW,
+    //     actions: [
+    //       "ses:SendEmail",
+    //       "ses:SendRawEmail",
+    //       "ses:SendTemplatedEmail",
+    //     ],
+    //     resources: ["*"],
+    //   })
+    // );
 
     rejectionMailerFn.addToRolePolicy(
       new iam.PolicyStatement({
@@ -206,6 +225,18 @@ export class EdaStack extends cdk.Stack {
         resources: ["*"],
       })
     );
+
+    addDeleteMailerFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "ses:SendEmail",
+          "ses:SendRawEmail",
+          "ses:SendTemplatedEmail",
+        ],
+        resources: ["*"],
+      })
+    )
 
   }
 }
